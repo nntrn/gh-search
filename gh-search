@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2145
+
+TODAY=$(date +%F)
+DEFAULT_CACHEDIR=$HOME/.cache/gh-search
+CACHEDIR=${GHSEARCH_CACHEDIR:-"$DEFAULT_CACHEDIR"}
+
+mkdir -p $CACHEDIR
+
+GHSEARCH_QUERY='NOT+is:fork+NOT+path:*test*'
+GHSEARCH_PAGE_LIMIT=1
+GHSEARCH_OUTDIR=${GHSEARCH_OUTDIR:-""}
+GHSEARCH_PAGE_START=1
+GHSEARCH_PER_PAGE=100
+GHSEARCH_OUTDIR=${GHSEARCH_OUTDIR:-/tmp/gh-search/$TODAY}
+
+JQ_FETCH_URLS='if (.items|length) > 0
+then (.items | map([
+  (.html_url|gsub("/github.com";"/raw.githubusercontent.com")|gsub("/blob/"; "/")),
+  .repository.full_name+"/"+.path,
+  (if .repository.private then 1 else 0 end)
+  ] | join(" "))
+| join("\n"))
+else ""
+end'
+
+_errorMsg() {
+    echo -e "\e[38;5;9m$@\e[0m"
+    exit 1
+}
+
+[[ -z $GITHUB_TOKEN ]] &&
+    _errorMsg 'GITHUB_TOKEN is not set in the environment. Run `export GITHUB_TOKEN`'
+
+ARGS=($@)
+queryargs=()
+
+for i in "${!ARGS[@]}"; do
+    index="${ARGS[$i]}"
+    next="${ARGS[$i + 1]}"
+    case "${index}" in
+    -l | --limit) GHSEARCH_PAGE_LIMIT="$next" ;;
+    -o | --out) GHSEARCH_OUTDIR="$next" ;;
+    -p | --page) GHSEARCH_PAGE_START=$next ;;
+    -t | --token) GITHUB_TOKEN="$next" ;;
+    -q | --query) GHSEARCH_QUERY="$next" ;;
+    -N | --no-defaults) GHSEARCH_QUERY= ;;
+    -a | --append) queryargs+=("$next") ;;
+    --per_page) GHSEARCH_PER_PAGE=$next ;;
+    --language) queryargs+=("language:$next") ;;
+    --repo) queryargs+=("repo:$next") ;;
+    --user) queryargs+=("user:$next") ;;
+    --path) queryargs+=("path:$next") ;;
+    --content) queryargs+=("$next") ;;
+    --not) queryargs+=("NOT") ;;
+    --or) queryargs+=("OR") ;;
+    esac
+done
+
+_chksum() {
+    echo "$@" | md5sum | awk '{print $1}'
+}
+
+_store() {
+    local GITHUB_URL="${1:?}"
+    OUTPUTPATH="$GHSEARCH_OUTDIR/${2:?}"
+    OUTPUTDIR="${OUTPUTPATH%/*}"
+    ISPRIVATEREPO=${3:?}
+
+    CHKSUM="$(_chksum $GITHUB_URL)"
+    CACHEFILE="${CACHEDIR}/${CHKSUM}"
+    CACHEMSG=
+
+    if [[ ! -f $CACHEFILE ]]; then
+        CACHEMSG='\e[0;36m(*)\e[0m'
+        if [[ $ISPRIVATEREPO -eq 1 ]]; then
+            curl -s -o "$CACHEFILE" -H "Authorization: Bearer $GITHUB_TOKEN" "${GITHUB_URL}"
+        else
+            curl -s -o "$CACHEFILE" "${GITHUB_URL}"
+        fi
+    fi
+
+    if [[ -f $CACHEFILE ]]; then
+        echo -e "Saving to $OUTPUTPATH $CACHEMSG"
+        mkdir -p "$OUTPUTDIR"
+        cp $CACHEFILE $OUTPUTPATH
+    else
+        return 1
+    fi
+}
+
+_fetch() {
+    API_URL="$1"
+    CHKSUM="$(_chksum "$API_URL")"
+    CACHEFILE="${CACHEDIR}/${CHKSUM}-${TODAY}.json"
+
+    if [[ ! -f $CACHEFILE ]]; then
+        curl -s --create-dirs -o "$CACHEFILE" -H "Authorization: Bearer $GITHUB_TOKEN" "${API_URL}"
+    fi
+
+    IFS=$'\n' FETCHITEMS=($(jq -r "$JQ_FETCH_URLS" $CACHEFILE))
+    FETCHCOUNT=${#FETCHITEMS[@]}
+
+    for i in "${!FETCHITEMS[@]}"; do
+        IFS=' ' storeargs=("${FETCHITEMS[$i]}")
+        _store ${storeargs[*]}
+    done
+    RC=$?
+
+    if [[ $FETCHCOUNT -lt $GHSEARCH_PER_PAGE ]]; then
+        return 1
+    fi
+    return $RC
+}
+
+BASE_URL="https://api.github.com/search/code?per_page=${GHSEARCH_PER_PAGE}"
+QUERY_ARGS=$(printf "%s+" "${queryargs[@]}")
+QUERY="${GHSEARCH_QUERY%+}+${QUERY_ARGS%+}"
+API_URL="${BASE_URL}&q=${QUERY%+}"
+
+start=${GHSEARCH_PAGE_START:-1}
+end=$((GHSEARCH_PAGE_START + GHSEARCH_PAGE_LIMIT - 1))
+
+echo -e "\e[38;5;12mq=${QUERY%+}\e[0m"
+
+for idx in $(seq $start $end); do
+    _fetch "${API_URL}&page=${idx}"
+    if [[ $? -ne 0 ]]; then
+        break
+    fi
+done
