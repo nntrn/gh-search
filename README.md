@@ -48,10 +48,14 @@ WIP
 - Only repositories that have had activity or have been returned in search results in the last year are searchable.
 
 - Except with `filename` searches, you must always include at least one search term when searching source code. For example, searching for [language:javascript](https://github.com/search?utf8=%E2%9C%93&q=language%3Ajavascript&type=Code&ref=searchresults) is not valid, while [amazing language:javascript](https://github.com/search?utf8=%E2%9C%93&q=amazing+language%3Ajavascript&type=Code&ref=searchresults) is.
+
 - At most, search results can show two fragments from the same file, but there may be more results within the file.
+
 - You can't use the following wildcard characters as part of your search query: `` . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ] @ ``. The search will simply ignore these symbols.
 
 ## References
 
 - https://docs.github.com/en/rest/search/search
 - https://docs.github.com/en/search-github/searching-on-github/searching-code
+- https://docs.github.com/en/search-github/getting-started-with-searching-on-github/understanding-the-search-syntax
+
