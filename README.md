@@ -2,7 +2,20 @@
 
 ## Usage
 
-WIP
+```sh
+export GITHUB_TOKEN=..
+
+gh-search \
+  --search <SEARCH_TERM> \
+  --language <LANGUAGE> \
+  --user <USER> \
+  --org <ORG> \
+  --repo <REPO> \
+  --extension <EXT> \
+  --per-page <NUM> \
+  --path <PATH> \
+  --out <DIR>
+```
 
 ## Examples
 
@@ -12,10 +25,10 @@ WIP
   gh-search --search api.github.com --language shell --org github
   ```
 
-- Search and save **10** **.jq** files to **/tmp/jq**
+- Search **jq** files that **def**ine functions and output first **10** to **/tmp/jq**
 
   ```sh
-  gh-search --search jq --extension jq --per-page 10 --out /tmp/jq
+  gh-search --search def --extension jq --per-page 10 --out /tmp/jq
   ```
 
 - **Search github for files that mention your username that isn't owned by you**  
@@ -29,33 +42,38 @@ WIP
 
 ## Considerations
 
-- You must be signed into a personal account on GitHub to search for code across all public repositories.
+- By default, bare search terms search both paths and file content.
 
-- Code in forks is only searchable if the fork has more stars than the parent repository.
-  Forks with fewer stars than the parent repository are not indexed for code search.
-  To include forks with more stars than their parent in the search results,
-  you will need to add `fork:true` or `fork:only` to your query.
+- Except with `filename` searches, you must always include at least one search term  
+  (i.e. **q=language:javascript** is not valid but **q=football+language:javascript** is ok)
 
-- Only the _default branch_ is indexed for code search.
+- `GITHUB_TOKEN` is required to search code
 
-- Only files smaller than 384 KB are searchable.
+- Code in forks is only searchable if the fork has more stars than the parent repository
 
-- Up to 4,000 private repositories are searchable. These 4,000 repositories will be the most recently
-  updated of the first 10,000 private repositories that you have access to.
+- Only the **default branch** is indexed for code search
 
-- Only repositories with fewer than 500,000 files are searchable.
+- Only files smaller than 384 KB are searchable
 
-- Only repositories that have had activity or have been returned in search results in the last year are searchable.
+- Up to 4,000 private repositories are searchable
 
-- Except with `filename` searches, you must always include at least one search term when searching source code. For example, searching for [language:javascript](https://github.com/search?utf8=%E2%9C%93&q=language%3Ajavascript&type=Code&ref=searchresults) is not valid, while [amazing language:javascript](https://github.com/search?utf8=%E2%9C%93&q=amazing+language%3Ajavascript&type=Code&ref=searchresults) is.
+- Only repositories with fewer than 500,000 files are searchable
 
-- At most, search results can show two fragments from the same file, but there may be more results within the file.
+- You can't use the following wildcard characters as part of your search query:  
+  `` . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ] @ ``
 
-- You can't use the following wildcard characters as part of your search query: `` . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ] @ ``. The search will simply ignore these symbols.
+  | This search                 | Finds repositories with…                                                |
+  | --------------------------- | ----------------------------------------------------------------------- |
+  | `curl repo:nntrn/bookstand` | Find all instances of curl in nntrn/bookstand                           |
+  | `shogun user:heroku`        | Find references to shogun from all public heroku repositories.          |
+  | `join extension:coffee`     | Find all instances of join in code with coffee extension.               |
+  | `system size:>1000`         | Find all instances of system in code of file size greater than 1000kbs. |
+  | `examples path:/docs/`      | Find all examples in the path /docs/.                                   |
+  | `replace fork:true`         | Search replace in the source code of forks.                             |
 
 ## References
 
 - https://docs.github.com/en/rest/search/search
 - https://docs.github.com/en/search-github/searching-on-github/searching-code
 - https://docs.github.com/en/search-github/getting-started-with-searching-on-github/understanding-the-search-syntax
-
+- https://github.com/search/advanced
