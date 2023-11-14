@@ -5,8 +5,7 @@
 ```sh
 export GITHUB_TOKEN=..
 
-gh-search \
-  --search [SEARCH_TERM] \
+gh-search --search [SEARCH_TERM] \
   --language [LANGUAGE] \
   --user [USER] \
   --org [ORG] \
@@ -37,7 +36,7 @@ gh-search \
   gh-search --search def --extension jq --per-page 10 --out /tmp/jq
   ```
 
-- Find instances of **episode** in **json** and **csv** fiels that don't contain **/locales/**
+- Find instances of **episode** in **json** and **csv** fields that don't contain **/locales/**
 
   ```sh
   gh-search --search episode --language json --or --language csv --not --path "/locales/" --out /tmp/data/tv
